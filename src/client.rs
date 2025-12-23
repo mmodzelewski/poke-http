@@ -1,6 +1,8 @@
 use crate::error::Result;
 use crate::http::{Method, Request};
+use crate::variable;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
@@ -35,7 +37,11 @@ impl Client {
         }
     }
 
-    pub async fn execute(&self, request: &Request) -> Result<Response> {
+    pub async fn execute(
+        &self,
+        request: &Request,
+        variables: &HashMap<String, String>,
+    ) -> Result<Response> {
         let start = Instant::now();
 
         let method = match request.method {
@@ -48,13 +54,15 @@ impl Client {
             Method::Options => reqwest::Method::OPTIONS,
         };
 
-        let mut req_builder = self.inner.request(method, &request.url);
+        let url = variable::substitute(&request.url, variables)?;
+        let mut req_builder = self.inner.request(method, &url);
 
         let mut headers = HeaderMap::new();
         for (key, value) in &request.headers {
+            let substituted_value = variable::substitute(value, variables)?;
             if let (Ok(name), Ok(val)) = (
                 HeaderName::try_from(key.as_str()),
-                HeaderValue::try_from(value.as_str()),
+                HeaderValue::try_from(substituted_value.as_str()),
             ) {
                 headers.insert(name, val);
             }
@@ -62,7 +70,8 @@ impl Client {
         req_builder = req_builder.headers(headers);
 
         if let Some(ref body) = request.body {
-            req_builder = req_builder.body(body.clone());
+            let substituted_body = variable::substitute(body, variables)?;
+            req_builder = req_builder.body(substituted_body);
         }
 
         let response = req_builder.send().await?;

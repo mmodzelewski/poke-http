@@ -1,32 +1,38 @@
+# Variables
+@baseUrl = https://jsonplaceholder.typicode.com
+@postId = 1
+@userId = 1
+@contentType = application/json
+
 ### List all posts
-GET https://jsonplaceholder.typicode.com/posts
+GET {{baseUrl}}/posts
 
 ### Get single post
-GET https://jsonplaceholder.typicode.com/posts/1
+GET {{baseUrl}}/posts/{{postId}}
 
 ### Create a new post
-POST https://jsonplaceholder.typicode.com/posts
-Content-Type: application/json
+POST {{baseUrl}}/posts
+Content-Type: {{contentType}}
 
 {
     "title": "Hello from poke!",
     "body": "This is a test request",
-    "userId": 1
+    "userId": {{userId}}
 }
 
 ### Update a post
-PUT https://jsonplaceholder.typicode.com/posts/1
-Content-Type: application/json
+PUT {{baseUrl}}/posts/{{postId}}
+Content-Type: {{contentType}}
 
 {
-    "id": 1,
+    "id": {{postId}},
     "title": "Updated title",
     "body": "Updated body",
-    "userId": 1
+    "userId": {{userId}}
 }
 
 ### Delete a post
-DELETE https://jsonplaceholder.typicode.com/posts/1
+DELETE {{baseUrl}}/posts/{{postId}}
 
 ### Get comments for a post
-GET https://jsonplaceholder.typicode.com/posts/1/comments
+GET {{baseUrl}}/posts/{{postId}}/comments

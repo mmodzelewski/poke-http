@@ -52,7 +52,7 @@ pub async fn run(http_file: HttpFile) -> anyhow::Result<()> {
 
                         terminal.draw(|frame| render(frame, &app))?;
 
-                        match client.execute(&request).await {
+                        match client.execute(&request, &app.http_file.variables).await {
                             Ok(response) => {
                                 app.last_response = Some(response);
                             }

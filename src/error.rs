@@ -12,6 +12,9 @@ pub enum Error {
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("Variable error: {0}")]
+    Variable(#[from] VariableError),
 }
 
 #[derive(Error, Debug)]
@@ -36,6 +39,12 @@ pub enum HttpError {
 
     #[error("Timeout")]
     Timeout,
+}
+
+#[derive(Error, Debug)]
+pub enum VariableError {
+    #[error("Undefined variable: {0}")]
+    UndefinedVariable(String),
 }
 
 impl From<reqwest::Error> for HttpError {

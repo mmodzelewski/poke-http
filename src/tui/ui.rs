@@ -13,7 +13,13 @@ pub fn render(frame: &mut Frame, app: &App) {
         .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
         .split(frame.area());
 
-    render_request_list(frame, app, chunks[0]);
+    let left_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
+        .split(chunks[0]);
+
+    render_request_list(frame, app, left_chunks[0]);
+    render_variables_panel(frame, app, left_chunks[1]);
     render_response_panel(frame, app, chunks[1]);
 }
 
@@ -67,6 +73,24 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
             .title(" Requests ")
             .borders(Borders::ALL)
             .border_style(border_style),
+    );
+
+    frame.render_widget(list, area);
+}
+
+fn render_variables_panel(frame: &mut Frame, app: &App, area: Rect) {
+    let items: Vec<ListItem> = app
+        .http_file
+        .variables
+        .iter()
+        .map(|(name, value)| ListItem::new(format!("@{} = {}", name, value)))
+        .collect();
+
+    let list = List::new(items).block(
+        Block::default()
+            .title(" Variables ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::DarkGray)),
     );
 
     frame.render_widget(list, area);

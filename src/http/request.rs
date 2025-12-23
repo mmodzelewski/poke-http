@@ -91,6 +91,7 @@ impl Request {
 pub struct HttpFile {
     pub path: PathBuf,
     pub requests: Vec<Request>,
+    pub variables: HashMap<String, String>,
 }
 
 impl HttpFile {
@@ -98,6 +99,7 @@ impl HttpFile {
         Self {
             path: path.into(),
             requests: Vec::new(),
+            variables: HashMap::new(),
         }
     }
 }
