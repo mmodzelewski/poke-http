@@ -1,0 +1,32 @@
+### List all posts
+GET https://jsonplaceholder.typicode.com/posts
+
+### Get single post
+GET https://jsonplaceholder.typicode.com/posts/1
+
+### Create a new post
+POST https://jsonplaceholder.typicode.com/posts
+Content-Type: application/json
+
+{
+    "title": "Hello from poke!",
+    "body": "This is a test request",
+    "userId": 1
+}
+
+### Update a post
+PUT https://jsonplaceholder.typicode.com/posts/1
+Content-Type: application/json
+
+{
+    "id": 1,
+    "title": "Updated title",
+    "body": "Updated body",
+    "userId": 1
+}
+
+### Delete a post
+DELETE https://jsonplaceholder.typicode.com/posts/1
+
+### Get comments for a post
+GET https://jsonplaceholder.typicode.com/posts/1/comments
