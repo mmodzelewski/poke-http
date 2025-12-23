@@ -4,7 +4,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 
 pub fn render(frame: &mut Frame, app: &App) {
@@ -28,8 +28,7 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
         .http_file
         .requests
         .iter()
-        .enumerate()
-        .map(|(i, req)| {
+        .map(|req| {
             let method_color = match req.method {
                 crate::http::Method::Get => Color::Green,
                 crate::http::Method::Post => Color::Yellow,
@@ -50,15 +49,7 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
                 Span::raw(req.name.as_deref().unwrap_or(&req.url)),
             ]);
 
-            let style = if i == app.selected {
-                Style::default()
-                    .bg(Color::DarkGray)
-                    .add_modifier(Modifier::BOLD)
-            } else {
-                Style::default()
-            };
-
-            ListItem::new(content).style(style)
+            ListItem::new(content)
         })
         .collect();
 
@@ -68,14 +59,21 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
         Style::default().fg(Color::DarkGray)
     };
 
-    let list = List::new(items).block(
-        Block::default()
-            .title(" Requests ")
-            .borders(Borders::ALL)
-            .border_style(border_style),
-    );
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Requests ")
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
 
-    frame.render_widget(list, area);
+    let mut list_state = ListState::default().with_selected(Some(app.selected));
+    frame.render_stateful_widget(list, area, &mut list_state);
 }
 
 fn render_variables_panel(frame: &mut Frame, app: &App, area: Rect) {

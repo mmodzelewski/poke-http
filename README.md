@@ -66,7 +66,7 @@ Content-Type: application/json
 
 ## Roadmap
 
-- [ ] Variable substitution (`{{baseUrl}}`)
+- [x] Variable substitution (`{{baseUrl}}`)
 - [ ] Environment files
 - [ ] Request history
 - [ ] Edit requests interactively
