@@ -84,14 +84,27 @@ fn render_variables_panel(frame: &mut Frame, app: &App, area: Rect) {
         .map(|(name, value)| ListItem::new(format!("@{} = {}", name, value)))
         .collect();
 
-    let list = List::new(items).block(
-        Block::default()
-            .title(" Variables ")
-            .borders(Borders::ALL)
-            .border_style(Style::default().fg(Color::DarkGray)),
-    );
+    let border_style = if app.focus == Focus::VariablesList {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
 
-    frame.render_widget(list, area);
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(" Variables ")
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let mut list_state = ListState::default().with_selected(Some(app.selected_variable));
+    frame.render_stateful_widget(list, area, &mut list_state);
 }
 
 fn render_response_panel(frame: &mut Frame, app: &App, area: Rect) {

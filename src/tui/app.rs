@@ -4,6 +4,7 @@ use crate::http::{HttpFile, Request};
 pub struct App {
     pub http_file: HttpFile,
     pub selected: usize,
+    pub selected_variable: usize,
     pub last_response: Option<Response>,
     pub should_quit: bool,
     pub focus: Focus,
@@ -14,6 +15,7 @@ pub struct App {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
     RequestList,
+    VariablesList,
     ResponseBody,
 }
 
@@ -22,6 +24,7 @@ impl App {
         Self {
             http_file,
             selected: 0,
+            selected_variable: 0,
             last_response: None,
             should_quit: false,
             focus: Focus::RequestList,
@@ -46,9 +49,22 @@ impl App {
         }
     }
 
+    pub fn select_previous_variable(&mut self) {
+        if self.selected_variable > 0 {
+            self.selected_variable -= 1;
+        }
+    }
+
+    pub fn select_next_variable(&mut self) {
+        if self.selected_variable < self.http_file.variables.len().saturating_sub(1) {
+            self.selected_variable += 1;
+        }
+    }
+
     pub fn toggle_focus(&mut self) {
         self.focus = match self.focus {
-            Focus::RequestList => Focus::ResponseBody,
+            Focus::RequestList => Focus::VariablesList,
+            Focus::VariablesList => Focus::ResponseBody,
             Focus::ResponseBody => Focus::RequestList,
         };
     }

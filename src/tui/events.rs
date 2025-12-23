@@ -31,6 +31,7 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) -> EventResult {
 
     match app.focus {
         Focus::RequestList => handle_request_list_keys(app, key),
+        Focus::VariablesList => handle_variables_keys(app, key),
         Focus::ResponseBody => handle_response_keys(app, key),
     }
 }
@@ -46,6 +47,20 @@ fn handle_request_list_keys(app: &mut App, key: KeyEvent) -> EventResult {
             EventResult::Continue
         }
         KeyCode::Enter => EventResult::ExecuteRequest,
+        _ => EventResult::Continue,
+    }
+}
+
+fn handle_variables_keys(app: &mut App, key: KeyEvent) -> EventResult {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.select_previous_variable();
+            EventResult::Continue
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.select_next_variable();
+            EventResult::Continue
+        }
         _ => EventResult::Continue,
     }
 }
