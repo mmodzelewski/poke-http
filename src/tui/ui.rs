@@ -7,20 +7,26 @@ use ratatui::{
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
 };
 
-pub fn render(frame: &mut Frame, app: &App) {
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+pub fn render(frame: &mut Frame, app: &mut App) {
+    let main_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
         .split(frame.area());
 
-    let left_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
-        .split(chunks[0]);
+    let top_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(main_chunks[0]);
 
-    render_request_list(frame, app, left_chunks[0]);
-    render_variables_panel(frame, app, left_chunks[1]);
-    render_response_panel(frame, app, chunks[1]);
+    let bottom_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(60), Constraint::Percentage(40)])
+        .split(main_chunks[1]);
+
+    render_request_list(frame, app, top_chunks[0]);
+    render_response_panel(frame, app, top_chunks[1]);
+    render_request_details(frame, app, bottom_chunks[0]);
+    render_variables_panel(frame, app, bottom_chunks[1]);
 }
 
 fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
@@ -76,10 +82,77 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
     frame.render_stateful_widget(list, area, &mut list_state);
 }
 
+fn render_request_details(frame: &mut Frame, app: &mut App, area: Rect) {
+    app.request_details_visible_height = area.height;
+
+    let content = if let Some(request) = app.selected_request() {
+        let mut lines: Vec<Line> = Vec::new();
+
+        let method_color = match request.method {
+            crate::http::Method::Get => Color::Green,
+            crate::http::Method::Post => Color::Yellow,
+            crate::http::Method::Put => Color::Blue,
+            crate::http::Method::Patch => Color::Cyan,
+            crate::http::Method::Delete => Color::Red,
+            _ => Color::White,
+        };
+
+        lines.push(Line::from(vec![
+            Span::styled(
+                format!("{}", request.method),
+                Style::default()
+                    .fg(method_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" "),
+            Span::raw(&request.url),
+        ]));
+
+        for (key, value) in &request.headers {
+            lines.push(Line::from(format!("{}: {}", key, value)));
+        }
+
+        if !request.headers.is_empty() && request.body.is_some() {
+            lines.push(Line::from(""));
+        }
+
+        if let Some(ref body) = request.body {
+            for line in body.lines() {
+                lines.push(Line::from(line.to_string()));
+            }
+        }
+
+        lines
+    } else {
+        vec![Line::from(Span::styled(
+            "No request selected",
+            Style::default().fg(Color::DarkGray),
+        ))]
+    };
+
+    let border_style = if app.focus == Focus::RequestDetails {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let paragraph = Paragraph::new(content)
+        .block(
+            Block::default()
+                .title(" Request ")
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.request_details_scroll, 0));
+
+    frame.render_widget(paragraph, area);
+}
+
 fn render_variables_panel(frame: &mut Frame, app: &App, area: Rect) {
-    let items: Vec<ListItem> = app
-        .http_file
-        .variables
+    let used_variables = app.get_used_variables();
+
+    let items: Vec<ListItem> = used_variables
         .iter()
         .map(|(name, value)| ListItem::new(format!("@{} = {}", name, value)))
         .collect();
@@ -90,10 +163,16 @@ fn render_variables_panel(frame: &mut Frame, app: &App, area: Rect) {
         Style::default().fg(Color::DarkGray)
     };
 
+    let title = if items.is_empty() {
+        " Variables (none) "
+    } else {
+        " Variables "
+    };
+
     let list = List::new(items)
         .block(
             Block::default()
-                .title(" Variables ")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(border_style),
         )

@@ -38,7 +38,7 @@ pub async fn run(http_file: HttpFile) -> anyhow::Result<()> {
     let client = Client::new();
 
     loop {
-        terminal.draw(|frame| render(frame, &app))?;
+        terminal.draw(|frame| render(frame, &mut app))?;
 
         if let Some(event) = poll_event(Duration::from_millis(100))?
             && let Event::Key(key) = event
@@ -50,7 +50,7 @@ pub async fn run(http_file: HttpFile) -> anyhow::Result<()> {
                         app.loading = true;
                         app.response_scroll = 0;
 
-                        terminal.draw(|frame| render(frame, &app))?;
+                        terminal.draw(|frame| render(frame, &mut app))?;
 
                         match client.execute(&request, &app.http_file.variables).await {
                             Ok(response) => {
