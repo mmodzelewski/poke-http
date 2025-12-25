@@ -30,11 +30,20 @@ pub fn render(frame: &mut Frame, app: &mut App) {
 }
 
 fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
-    let items: Vec<ListItem> = app
-        .http_file
-        .requests
+    let (list_area, filter_area) = if app.filter_active {
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(0), Constraint::Length(1)])
+            .split(area);
+        (chunks[0], Some(chunks[1]))
+    } else {
+        (area, None)
+    };
+
+    let filtered = app.filtered_requests();
+    let items: Vec<ListItem> = filtered
         .iter()
-        .map(|req| {
+        .map(|(_, req)| {
             let method_color = match req.method {
                 crate::http::Method::Get => Color::Green,
                 crate::http::Method::Post => Color::Yellow,
@@ -65,10 +74,20 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
         Style::default().fg(Color::DarkGray)
     };
 
+    let title = if app.filter_active {
+        format!(
+            " Requests ({}/{}) ",
+            filtered.len(),
+            app.http_file.requests.len()
+        )
+    } else {
+        " Requests ".to_string()
+    };
+
     let list = List::new(items)
         .block(
             Block::default()
-                .title(" Requests ")
+                .title(title)
                 .borders(Borders::ALL)
                 .border_style(border_style),
         )
@@ -79,7 +98,13 @@ fn render_request_list(frame: &mut Frame, app: &App, area: Rect) {
         );
 
     let mut list_state = ListState::default().with_selected(Some(app.selected));
-    frame.render_stateful_widget(list, area, &mut list_state);
+    frame.render_stateful_widget(list, list_area, &mut list_state);
+
+    if let Some(filter_area) = filter_area {
+        let filter_text = format!("/{}", app.filter_text);
+        let filter_line = Paragraph::new(filter_text).style(Style::default().fg(Color::Yellow));
+        frame.render_widget(filter_line, filter_area);
+    }
 }
 
 fn render_request_details(frame: &mut Frame, app: &mut App, area: Rect) {

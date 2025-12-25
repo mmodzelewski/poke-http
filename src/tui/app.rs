@@ -14,6 +14,8 @@ pub struct App {
     pub request_details_scroll: u16,
     pub request_details_visible_height: u16,
     pub loading: bool,
+    pub filter_text: String,
+    pub filter_active: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,11 +39,62 @@ impl App {
             request_details_scroll: 0,
             request_details_visible_height: 0,
             loading: false,
+            filter_text: String::new(),
+            filter_active: false,
         }
     }
 
     pub fn selected_request(&self) -> Option<&Request> {
-        self.http_file.requests.get(self.selected)
+        if self.filter_active {
+            self.filtered_requests()
+                .get(self.selected)
+                .map(|(idx, _)| &self.http_file.requests[*idx])
+        } else {
+            self.http_file.requests.get(self.selected)
+        }
+    }
+
+    pub fn filtered_requests(&self) -> Vec<(usize, &Request)> {
+        if !self.filter_active || self.filter_text.is_empty() {
+            return self.http_file.requests.iter().enumerate().collect();
+        }
+
+        let filter_lower = self.filter_text.to_lowercase();
+        self.http_file
+            .requests
+            .iter()
+            .enumerate()
+            .filter(|(_, req)| {
+                let name_matches = req
+                    .name
+                    .as_ref()
+                    .map(|n| n.to_lowercase().contains(&filter_lower))
+                    .unwrap_or(false);
+                let url_matches = req.url.to_lowercase().contains(&filter_lower);
+                name_matches || url_matches
+            })
+            .collect()
+    }
+
+    pub fn enter_filter_mode(&mut self) {
+        self.filter_active = true;
+        self.selected = 0;
+    }
+
+    pub fn exit_filter_mode(&mut self) {
+        self.filter_active = false;
+        self.filter_text.clear();
+        self.selected = 0;
+    }
+
+    pub fn filter_append_char(&mut self, c: char) {
+        self.filter_text.push(c);
+        self.selected = 0;
+    }
+
+    pub fn filter_backspace(&mut self) {
+        self.filter_text.pop();
+        self.selected = 0;
     }
 
     pub fn select_previous(&mut self) {
@@ -53,7 +106,12 @@ impl App {
     }
 
     pub fn select_next(&mut self) {
-        if self.selected < self.http_file.requests.len().saturating_sub(1) {
+        let max = if self.filter_active {
+            self.filtered_requests().len().saturating_sub(1)
+        } else {
+            self.http_file.requests.len().saturating_sub(1)
+        };
+        if self.selected < max {
             self.selected += 1;
             self.selected_variable = 0;
             self.request_details_scroll = 0;

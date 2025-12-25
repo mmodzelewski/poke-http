@@ -38,6 +38,10 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) -> EventResult {
 }
 
 fn handle_request_list_keys(app: &mut App, key: KeyEvent) -> EventResult {
+    if app.filter_active {
+        return handle_filter_keys(app, key);
+    }
+
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
             app.select_previous();
@@ -48,6 +52,49 @@ fn handle_request_list_keys(app: &mut App, key: KeyEvent) -> EventResult {
             EventResult::Continue
         }
         KeyCode::Enter => EventResult::ExecuteRequest,
+        KeyCode::Char('/') => {
+            app.enter_filter_mode();
+            EventResult::Continue
+        }
+        _ => EventResult::Continue,
+    }
+}
+
+fn handle_filter_keys(app: &mut App, key: KeyEvent) -> EventResult {
+    match key.code {
+        KeyCode::Esc => {
+            app.exit_filter_mode();
+            EventResult::Continue
+        }
+        KeyCode::Backspace => {
+            if app.filter_text.is_empty() {
+                app.exit_filter_mode();
+            } else {
+                app.filter_backspace();
+            }
+            EventResult::Continue
+        }
+        KeyCode::Up | KeyCode::Char('k') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.select_previous();
+            EventResult::Continue
+        }
+        KeyCode::Down | KeyCode::Char('j') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+            app.select_next();
+            EventResult::Continue
+        }
+        KeyCode::Up => {
+            app.select_previous();
+            EventResult::Continue
+        }
+        KeyCode::Down => {
+            app.select_next();
+            EventResult::Continue
+        }
+        KeyCode::Enter => EventResult::ExecuteRequest,
+        KeyCode::Char(c) => {
+            app.filter_append_char(c);
+            EventResult::Continue
+        }
         _ => EventResult::Continue,
     }
 }
