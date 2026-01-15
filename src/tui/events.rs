@@ -5,6 +5,7 @@ use std::time::Duration;
 pub enum EventResult {
     Continue,
     ExecuteRequest,
+    ExecuteHistoryEntry,
     Quit,
 }
 
@@ -22,18 +23,43 @@ pub fn handle_key_event(app: &mut App, key: KeyEvent) -> EventResult {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
             return EventResult::Quit;
         }
+        KeyCode::Char('H') if !app.filter_active => {
+            app.toggle_history_view();
+            return EventResult::Continue;
+        }
+        KeyCode::Esc if app.history_view_active => {
+            app.toggle_history_view();
+            return EventResult::Continue;
+        }
         KeyCode::Tab => {
-            app.toggle_focus();
+            if app.history_view_active {
+                app.focus = match app.focus {
+                    Focus::HistoryList => Focus::HistoryDetail,
+                    Focus::HistoryDetail => Focus::HistoryList,
+                    _ => Focus::HistoryList,
+                };
+            } else {
+                app.toggle_focus();
+            }
             return EventResult::Continue;
         }
         _ => {}
     }
 
-    match app.focus {
-        Focus::RequestList => handle_request_list_keys(app, key),
-        Focus::ResponseBody => handle_response_keys(app, key),
-        Focus::RequestDetails => handle_request_details_keys(app, key),
-        Focus::VariablesList => handle_variables_keys(app, key),
+    if app.history_view_active {
+        match app.focus {
+            Focus::HistoryList => handle_history_list_keys(app, key),
+            Focus::HistoryDetail => handle_history_detail_keys(app, key),
+            _ => EventResult::Continue,
+        }
+    } else {
+        match app.focus {
+            Focus::RequestList => handle_request_list_keys(app, key),
+            Focus::ResponseBody => handle_response_keys(app, key),
+            Focus::RequestDetails => handle_request_details_keys(app, key),
+            Focus::VariablesList => handle_variables_keys(app, key),
+            _ => EventResult::Continue,
+        }
     }
 }
 
@@ -178,6 +204,47 @@ fn handle_request_details_keys(app: &mut App, key: KeyEvent) -> EventResult {
         KeyCode::PageDown => {
             for _ in 0..10 {
                 app.scroll_request_details_down();
+            }
+            EventResult::Continue
+        }
+        _ => EventResult::Continue,
+    }
+}
+
+fn handle_history_list_keys(app: &mut App, key: KeyEvent) -> EventResult {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.select_previous_history();
+            EventResult::Continue
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.select_next_history();
+            EventResult::Continue
+        }
+        KeyCode::Enter => EventResult::ExecuteHistoryEntry,
+        _ => EventResult::Continue,
+    }
+}
+
+fn handle_history_detail_keys(app: &mut App, key: KeyEvent) -> EventResult {
+    match key.code {
+        KeyCode::Up | KeyCode::Char('k') => {
+            app.scroll_history_detail_up();
+            EventResult::Continue
+        }
+        KeyCode::Down | KeyCode::Char('j') => {
+            app.scroll_history_detail_down();
+            EventResult::Continue
+        }
+        KeyCode::PageUp => {
+            for _ in 0..10 {
+                app.scroll_history_detail_up();
+            }
+            EventResult::Continue
+        }
+        KeyCode::PageDown => {
+            for _ in 0..10 {
+                app.scroll_history_detail_down();
             }
             EventResult::Continue
         }

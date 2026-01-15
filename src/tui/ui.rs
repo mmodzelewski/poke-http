@@ -1,4 +1,5 @@
 use super::app::{App, Focus, ResponseTab};
+use chrono::{DateTime, Local};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -8,6 +9,14 @@ use ratatui::{
 };
 
 pub fn render(frame: &mut Frame, app: &mut App) {
+    if app.history_view_active {
+        render_history_view(frame, app);
+    } else {
+        render_main_view(frame, app);
+    }
+}
+
+fn render_main_view(frame: &mut Frame, app: &mut App) {
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Percentage(75), Constraint::Percentage(25)])
@@ -317,6 +326,224 @@ fn render_response_panel(frame: &mut Frame, app: &App, area: Rect) {
             frame.render_widget(headers_block, chunks[1]);
         }
     }
+}
+
+fn render_history_view(frame: &mut Frame, app: &App) {
+    let main_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Length(1), Constraint::Min(0)])
+        .split(frame.area());
+
+    let help = Paragraph::new(
+        " History | ESC/H: back | Tab: switch panels | Enter: re-execute | j/k: navigate",
+    )
+    .style(Style::default().fg(Color::DarkGray));
+    frame.render_widget(help, main_chunks[0]);
+
+    let content_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)])
+        .split(main_chunks[1]);
+
+    render_history_list(frame, app, content_chunks[0]);
+    render_history_detail(frame, app, content_chunks[1]);
+}
+
+fn render_history_list(frame: &mut Frame, app: &App, area: Rect) {
+    let items: Vec<ListItem> = app
+        .history
+        .iter()
+        .enumerate()
+        .rev()
+        .map(|(_, entry)| {
+            let method_color = match entry.request.method {
+                crate::http::Method::Get => Color::Green,
+                crate::http::Method::Post => Color::Yellow,
+                crate::http::Method::Put => Color::Blue,
+                crate::http::Method::Patch => Color::Cyan,
+                crate::http::Method::Delete => Color::Red,
+                _ => Color::White,
+            };
+
+            let status_color = if entry.response.status < 300 {
+                Color::Green
+            } else if entry.response.status < 400 {
+                Color::Yellow
+            } else {
+                Color::Red
+            };
+
+            let timestamp: DateTime<Local> = entry.timestamp.into();
+            let time_str = timestamp.format("%H:%M:%S").to_string();
+
+            let content = Line::from(vec![
+                Span::styled(time_str, Style::default().fg(Color::DarkGray)),
+                Span::raw(" "),
+                Span::styled(
+                    format!("{}", entry.response.status),
+                    Style::default().fg(status_color),
+                ),
+                Span::raw(" "),
+                Span::styled(
+                    format!("{:7}", entry.request.method),
+                    Style::default()
+                        .fg(method_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+                Span::raw(entry.request.name.as_deref().unwrap_or(&entry.request.url)),
+            ]);
+
+            ListItem::new(content)
+        })
+        .collect();
+
+    let border_style = if app.focus == Focus::HistoryList {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let title = format!(" History ({}) ", app.history.len());
+
+    let list = List::new(items)
+        .block(
+            Block::default()
+                .title(title)
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let display_index = if app.history.is_empty() {
+        0
+    } else {
+        app.history.len() - 1 - app.selected_history
+    };
+
+    let mut list_state = ListState::default().with_selected(Some(display_index));
+    frame.render_stateful_widget(list, area, &mut list_state);
+}
+
+fn render_history_detail(frame: &mut Frame, app: &App, area: Rect) {
+    let Some(entry) = app.selected_history_entry() else {
+        let empty = Paragraph::new("No history entries yet. Execute a request first.")
+            .style(Style::default().fg(Color::DarkGray))
+            .block(
+                Block::default()
+                    .title(" Details ")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(Color::DarkGray)),
+            );
+        frame.render_widget(empty, area);
+        return;
+    };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(35), Constraint::Percentage(65)])
+        .split(area);
+
+    // Request section
+    let mut request_lines: Vec<Line> = Vec::new();
+
+    let method_color = match entry.request.method {
+        crate::http::Method::Get => Color::Green,
+        crate::http::Method::Post => Color::Yellow,
+        crate::http::Method::Put => Color::Blue,
+        crate::http::Method::Patch => Color::Cyan,
+        crate::http::Method::Delete => Color::Red,
+        _ => Color::White,
+    };
+
+    request_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{}", entry.request.method),
+            Style::default()
+                .fg(method_color)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw(" "),
+        Span::raw(&entry.request.url),
+    ]));
+
+    for (key, value) in &entry.request.headers {
+        request_lines.push(Line::from(format!("{}: {}", key, value)));
+    }
+
+    if let Some(ref body) = entry.request.body {
+        if !entry.request.headers.is_empty() {
+            request_lines.push(Line::from(""));
+        }
+        for line in body.lines() {
+            request_lines.push(Line::from(line.to_string()));
+        }
+    }
+
+    let request_block = Paragraph::new(request_lines)
+        .block(
+            Block::default()
+                .title(" Request ")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        )
+        .wrap(Wrap { trim: false });
+
+    frame.render_widget(request_block, chunks[0]);
+
+    // Response section
+    let border_style = if app.focus == Focus::HistoryDetail {
+        Style::default().fg(Color::Cyan)
+    } else {
+        Style::default().fg(Color::DarkGray)
+    };
+
+    let status_color = if entry.response.status < 300 {
+        Color::Green
+    } else if entry.response.status < 400 {
+        Color::Yellow
+    } else {
+        Color::Red
+    };
+
+    let mut response_lines: Vec<Line> = Vec::new();
+
+    response_lines.push(Line::from(vec![
+        Span::styled(
+            format!("{} {}", entry.response.status, entry.response.status_text),
+            Style::default()
+                .fg(status_color)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("  "),
+        Span::styled(
+            format!("{:.2?}", entry.response.duration),
+            Style::default().fg(Color::DarkGray),
+        ),
+    ]));
+
+    response_lines.push(Line::from(""));
+
+    let formatted_body = format_body(&entry.response.body);
+    for line in formatted_body.lines() {
+        response_lines.push(Line::from(line.to_string()));
+    }
+
+    let response_block = Paragraph::new(response_lines)
+        .block(
+            Block::default()
+                .title(" Response ")
+                .borders(Borders::ALL)
+                .border_style(border_style),
+        )
+        .wrap(Wrap { trim: false })
+        .scroll((app.history_detail_scroll, 0));
+
+    frame.render_widget(response_block, chunks[1]);
 }
 
 fn format_body(body: &str) -> String {

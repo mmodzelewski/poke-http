@@ -2,6 +2,14 @@ use crate::client::Response;
 use crate::http::{HttpFile, Request};
 use regex::Regex;
 use std::collections::HashSet;
+use std::time::SystemTime;
+
+#[derive(Debug, Clone)]
+pub struct HistoryEntry {
+    pub request: Request,
+    pub response: Response,
+    pub timestamp: SystemTime,
+}
 
 pub struct App {
     pub http_file: HttpFile,
@@ -18,6 +26,10 @@ pub struct App {
     pub loading: bool,
     pub filter_text: String,
     pub filter_active: bool,
+    pub history: Vec<HistoryEntry>,
+    pub history_view_active: bool,
+    pub selected_history: usize,
+    pub history_detail_scroll: u16,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +38,8 @@ pub enum Focus {
     ResponseBody,
     RequestDetails,
     VariablesList,
+    HistoryList,
+    HistoryDetail,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -52,6 +66,10 @@ impl App {
             loading: false,
             filter_text: String::new(),
             filter_active: false,
+            history: Vec::new(),
+            history_view_active: false,
+            selected_history: 0,
+            history_detail_scroll: 0,
         }
     }
 
@@ -148,6 +166,7 @@ impl App {
             Focus::ResponseBody => Focus::RequestDetails,
             Focus::RequestDetails => Focus::VariablesList,
             Focus::VariablesList => Focus::RequestList,
+            Focus::HistoryList | Focus::HistoryDetail => Focus::HistoryList,
         };
     }
 
@@ -246,5 +265,48 @@ impl App {
                     .map(|value| (name, value.clone()))
             })
             .collect()
+    }
+
+    pub fn add_history_entry(&mut self, entry: HistoryEntry) {
+        self.history.push(entry);
+    }
+
+    pub fn toggle_history_view(&mut self) {
+        self.history_view_active = !self.history_view_active;
+        if self.history_view_active {
+            self.focus = Focus::HistoryList;
+            if !self.history.is_empty() {
+                self.selected_history = self.history.len() - 1;
+            }
+        } else {
+            self.focus = Focus::RequestList;
+        }
+        self.history_detail_scroll = 0;
+    }
+
+    pub fn selected_history_entry(&self) -> Option<&HistoryEntry> {
+        self.history.get(self.selected_history)
+    }
+
+    pub fn select_previous_history(&mut self) {
+        if self.selected_history > 0 {
+            self.selected_history -= 1;
+            self.history_detail_scroll = 0;
+        }
+    }
+
+    pub fn select_next_history(&mut self) {
+        if self.selected_history < self.history.len().saturating_sub(1) {
+            self.selected_history += 1;
+            self.history_detail_scroll = 0;
+        }
+    }
+
+    pub fn scroll_history_detail_up(&mut self) {
+        self.history_detail_scroll = self.history_detail_scroll.saturating_sub(1);
+    }
+
+    pub fn scroll_history_detail_down(&mut self) {
+        self.history_detail_scroll = self.history_detail_scroll.saturating_add(1);
     }
 }

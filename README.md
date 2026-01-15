@@ -68,7 +68,7 @@ Content-Type: application/json
 
 - [x] Variable substitution (`{{baseUrl}}`)
 - [ ] Environment files
-- [ ] Request history
+- [x] Request history
 - [ ] Edit requests interactively
 - [ ] Save/export responses
 - [ ] Request chaining
