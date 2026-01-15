@@ -1,4 +1,4 @@
-use super::app::{App, Focus};
+use super::app::{App, Focus, ResponseTab};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 use std::time::Duration;
 
@@ -115,23 +115,43 @@ fn handle_variables_keys(app: &mut App, key: KeyEvent) -> EventResult {
 
 fn handle_response_keys(app: &mut App, key: KeyEvent) -> EventResult {
     match key.code {
+        KeyCode::Char('h') | KeyCode::Right => {
+            app.switch_to_headers_tab();
+            EventResult::Continue
+        }
+        KeyCode::Char('b') | KeyCode::Left => {
+            app.switch_to_body_tab();
+            EventResult::Continue
+        }
         KeyCode::Up | KeyCode::Char('k') => {
-            app.scroll_up();
+            match app.response_tab {
+                ResponseTab::Body => app.scroll_up(),
+                ResponseTab::Headers => app.scroll_headers_up(),
+            }
             EventResult::Continue
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            app.scroll_down();
+            match app.response_tab {
+                ResponseTab::Body => app.scroll_down(),
+                ResponseTab::Headers => app.scroll_headers_down(),
+            }
             EventResult::Continue
         }
         KeyCode::PageUp => {
             for _ in 0..10 {
-                app.scroll_up();
+                match app.response_tab {
+                    ResponseTab::Body => app.scroll_up(),
+                    ResponseTab::Headers => app.scroll_headers_up(),
+                }
             }
             EventResult::Continue
         }
         KeyCode::PageDown => {
             for _ in 0..10 {
-                app.scroll_down();
+                match app.response_tab {
+                    ResponseTab::Body => app.scroll_down(),
+                    ResponseTab::Headers => app.scroll_headers_down(),
+                }
             }
             EventResult::Continue
         }

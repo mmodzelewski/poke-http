@@ -1,4 +1,4 @@
-use super::app::{App, Focus};
+use super::app::{App, Focus, ResponseTab};
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout, Rect},
@@ -260,29 +260,63 @@ fn render_response_panel(frame: &mut Frame, app: &App, area: Rect) {
 
     frame.render_widget(status_block, chunks[0]);
 
-    let body_content = app
-        .last_response
-        .as_ref()
-        .map(|r| format_body(&r.body))
-        .unwrap_or_default();
-
     let border_style = if app.focus == Focus::ResponseBody {
         Style::default().fg(Color::Cyan)
     } else {
         Style::default().fg(Color::DarkGray)
     };
 
-    let body_block = Paragraph::new(body_content)
-        .block(
-            Block::default()
-                .title(" Response ")
-                .borders(Borders::ALL)
-                .border_style(border_style),
-        )
-        .wrap(Wrap { trim: false })
-        .scroll((app.response_scroll, 0));
+    let title = match app.response_tab {
+        ResponseTab::Body => " [Body] Headers ",
+        ResponseTab::Headers => " Body [Headers] ",
+    };
 
-    frame.render_widget(body_block, chunks[1]);
+    match app.response_tab {
+        ResponseTab::Body => {
+            let body_content = app
+                .last_response
+                .as_ref()
+                .map(|r| format_body(&r.body))
+                .unwrap_or_default();
+
+            let body_block = Paragraph::new(body_content)
+                .block(
+                    Block::default()
+                        .title(title)
+                        .borders(Borders::ALL)
+                        .border_style(border_style),
+                )
+                .wrap(Wrap { trim: false })
+                .scroll((app.response_scroll, 0));
+
+            frame.render_widget(body_block, chunks[1]);
+        }
+        ResponseTab::Headers => {
+            let headers_content = app
+                .last_response
+                .as_ref()
+                .map(|r| {
+                    r.headers
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .unwrap_or_default();
+
+            let headers_block = Paragraph::new(headers_content)
+                .block(
+                    Block::default()
+                        .title(title)
+                        .borders(Borders::ALL)
+                        .border_style(border_style),
+                )
+                .wrap(Wrap { trim: false })
+                .scroll((app.headers_scroll, 0));
+
+            frame.render_widget(headers_block, chunks[1]);
+        }
+    }
 }
 
 fn format_body(body: &str) -> String {

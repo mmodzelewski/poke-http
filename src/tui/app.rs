@@ -11,6 +11,8 @@ pub struct App {
     pub should_quit: bool,
     pub focus: Focus,
     pub response_scroll: u16,
+    pub response_tab: ResponseTab,
+    pub headers_scroll: u16,
     pub request_details_scroll: u16,
     pub request_details_visible_height: u16,
     pub loading: bool,
@@ -26,6 +28,13 @@ pub enum Focus {
     VariablesList,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ResponseTab {
+    #[default]
+    Body,
+    Headers,
+}
+
 impl App {
     pub fn new(http_file: HttpFile) -> Self {
         Self {
@@ -36,6 +45,8 @@ impl App {
             should_quit: false,
             focus: Focus::RequestList,
             response_scroll: 0,
+            response_tab: ResponseTab::default(),
+            headers_scroll: 0,
             request_details_scroll: 0,
             request_details_visible_height: 0,
             loading: false,
@@ -146,6 +157,22 @@ impl App {
 
     pub fn scroll_down(&mut self) {
         self.response_scroll = self.response_scroll.saturating_add(1);
+    }
+
+    pub fn switch_to_body_tab(&mut self) {
+        self.response_tab = ResponseTab::Body;
+    }
+
+    pub fn switch_to_headers_tab(&mut self) {
+        self.response_tab = ResponseTab::Headers;
+    }
+
+    pub fn scroll_headers_up(&mut self) {
+        self.headers_scroll = self.headers_scroll.saturating_sub(1);
+    }
+
+    pub fn scroll_headers_down(&mut self) {
+        self.headers_scroll = self.headers_scroll.saturating_add(1);
     }
 
     pub fn quit(&mut self) {
